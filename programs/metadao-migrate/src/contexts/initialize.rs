@@ -12,10 +12,10 @@ pub struct Initialize<'info> {
         mut,
         address = ADMIN
     )]
-    payer: Signer<'info>,
+    admin: Signer<'info>,
     #[account(
         init,
-        payer = payer,
+        payer = admin,
         space = Config::DISCRIMINATOR.len() + Config::INIT_SPACE,
         seeds = [b"migration", mint_from.as_ref(), mint_to.as_ref()],
         bump

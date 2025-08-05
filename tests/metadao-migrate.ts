@@ -84,17 +84,18 @@ describe("metadao-migrate", () => {
           lamports: 10 * LAMPORTS_PER_SOL,
         })
       ),
-      ...[mintFrom, mintTo].map((mint) =>
-        SystemProgram.createAccount({
-          fromPubkey: provider.publicKey,
-          newAccountPubkey: mint,
-          lamports,
-          space: MINT_SIZE,
-          programId: tokenProgram,
-        })
+      ...[mintFrom, mintTo].flatMap((mint) =>
+        [
+          SystemProgram.createAccount({
+            fromPubkey: provider.publicKey,
+            newAccountPubkey: mint,
+            lamports,
+            space: MINT_SIZE,
+            programId: tokenProgram,
+          }),
+          createInitializeMint2Instruction(mint, 6, provider.publicKey!, null, tokenProgram),
+        ]
       ),
-      createInitializeMint2Instruction(mintFrom, 6, provider.publicKey!, null, tokenProgram),
-      createInitializeMint2Instruction(mintTo, 6, provider.publicKey!, null, tokenProgram),
       ...[
         { mint: mintFrom, authority: payer, ata: payerTaFrom },
         { mint: mintTo, authority: payer, ata: payerTaTo },
@@ -103,11 +104,9 @@ describe("metadao-migrate", () => {
       ]
       .flatMap((account) => [
         createAssociatedTokenAccountIdempotentInstruction(provider.publicKey, account.ata, account.authority, account.mint, tokenProgram),
-        createMintToInstruction(account.mint, account.ata, account.authority, 1e9, undefined, tokenProgram),
+        createMintToInstruction(account.mint, account.ata, provider.publicKey!, 1e9, undefined, tokenProgram),
       ])
     ];
-
-    console.log(accounts);
 
     await provider.sendAndConfirm(tx, [mintFromKeypair, mintToKeypair]).then(log);
   })
