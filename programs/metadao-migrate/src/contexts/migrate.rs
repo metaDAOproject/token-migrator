@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
-use crate::state::{Vault, Strategy};
+use crate::state::Vault;
 
 #[derive(Accounts)]
 pub struct Migrate<'info> {
@@ -43,38 +43,11 @@ pub struct Migrate<'info> {
 
 impl<'info> Migrate<'info> {
     pub fn migrate(&mut self, amount: u64) -> Result<()> {
-        let withdraw_amount: u64 = match self.vault.strategy {
-            Strategy::ProRata => {
-                // How much am I depositing / How many tokens are there * what is in the vault?
-                // what is in the vault *
-                let circulating_supply = self
-                    .mint_from
-                    .supply
-                    .checked_sub(self.vault_from_ta.amount)
-                    .ok_or(ProgramError::ArithmeticOverflow)?;
-                u128::from(self.vault_to_ta.amount)
-                    .saturating_mul(amount.into())
-                    .saturating_div(circulating_supply.into())
-                    .try_into()
-                    .map_err(|_| ProgramError::ArithmeticOverflow)?
-            }
-            Strategy::Fixed(e) => {
-                if e == 0 {
-                    amount
-                } else if e < 0 {
-                    let divisor = 10u64.pow(-e as u32);
-                    amount
-                        .checked_div(divisor)
-                        .ok_or(ProgramError::ArithmeticOverflow)?
-                    // divide by
-                } else {
-                    let multiplier = 10u64.pow(e as u32);
-                    amount
-                        .checked_mul(multiplier)
-                        .ok_or(ProgramError::ArithmeticOverflow)?
-                }
-            }
-        };
+        let withdraw_amount: u64 = self.vault.strategy.withdraw_amount(
+            amount,
+            self.mint_from.supply.saturating_sub(self.vault_from_ta.amount),
+            self.vault_to_ta.amount,
+        )?;
 
         // Deposit the `from` tokens into the vault
         let accounts = Transfer {
