@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::{
     constants::ADMIN,
-    state::{Vault, Strategy},
+    state::{Strategy, Vault},
 };
 
 #[derive(Accounts)]

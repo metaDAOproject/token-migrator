@@ -9,32 +9,27 @@ pub enum Strategy {
 impl Strategy {
     pub fn withdraw_amount(self, amount: u64, supply_from: u64, supply_to: u64) -> Result<u64> {
         Ok(match self {
-                    Strategy::ProRata => {
-                        // How much am I depositing / How many tokens are there * what is in the vault?
-                        // what is in the vault *
-                        u128::from(supply_to)
-                            .saturating_mul(amount.into())
-                            .saturating_div(supply_from.into())
-                            .try_into()
-                            .map_err(|_| ProgramError::ArithmeticOverflow)?
-                    }
-                    Strategy::Fixed(e) => {
-                        if e == 0 {
-                            amount
-                        } else if e < 0 {
-                            let divisor = 10u64.pow(-e as u32);
-                            amount
-                                .checked_div(divisor)
-                                .ok_or(ProgramError::ArithmeticOverflow)?
-                            // divide by
-                        } else {
-                            let multiplier = 10u64.pow(e as u32);
-                            amount
-                                .checked_mul(multiplier)
-                                .ok_or(ProgramError::ArithmeticOverflow)?
-                        }
-                    }
-                })
+            Strategy::ProRata => u128::from(supply_to)
+                .saturating_mul(amount.into())
+                .saturating_div(supply_from.into())
+                .try_into()
+                .map_err(|_| ProgramError::ArithmeticOverflow)?,
+            Strategy::Fixed(e) => {
+                if e == 0 {
+                    amount
+                } else if e < 0 {
+                    let divisor = 10u64.pow(-e as u32);
+                    amount
+                        .checked_div(divisor)
+                        .ok_or(ProgramError::ArithmeticOverflow)?
+                } else {
+                    let multiplier = 10u64.pow(e as u32);
+                    amount
+                        .checked_mul(multiplier)
+                        .ok_or(ProgramError::ArithmeticOverflow)?
+                }
+            }
+        })
     }
 }
 

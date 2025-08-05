@@ -45,7 +45,9 @@ impl<'info> Migrate<'info> {
     pub fn migrate(&mut self, amount: u64) -> Result<()> {
         let withdraw_amount: u64 = self.vault.strategy.withdraw_amount(
             amount,
-            self.mint_from.supply.saturating_sub(self.vault_from_ta.amount),
+            self.mint_from
+                .supply
+                .saturating_sub(self.vault_from_ta.amount),
             self.vault_to_ta.amount,
         )?;
 
