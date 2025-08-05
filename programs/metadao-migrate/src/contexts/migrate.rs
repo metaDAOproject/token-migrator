@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
-use crate::state::{Config, Strategy};
+use crate::state::{Vault, Strategy};
 
 #[derive(Accounts)]
 pub struct Migrate<'info> {
@@ -23,27 +23,27 @@ pub struct Migrate<'info> {
     payer_to_ta: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        token::authority = config,
+        token::authority = vault,
         token::mint = mint_from
     )]
     vault_from_ta: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        token::authority = config,
+        token::authority = vault,
         token::mint = mint_to
     )]
     vault_to_ta: Box<Account<'info, TokenAccount>>,
     #[account(
-        seeds = [b"migration", mint_from.key().as_ref(), mint_to.key().as_ref()],
-        bump = config.bump[0],
+        seeds = [b"vault", mint_from.key().as_ref(), mint_to.key().as_ref()],
+        bump = vault.bump[0],
     )]
-    config: Account<'info, Config>,
+    vault: Account<'info, Vault>,
     token_program: Program<'info, Token>,
 }
 
 impl<'info> Migrate<'info> {
     pub fn migrate(&mut self, amount: u64) -> Result<()> {
-        let withdraw_amount: u64 = match self.config.strategy {
+        let withdraw_amount: u64 = match self.vault.strategy {
             Strategy::ProRata => {
                 // How much am I depositing / How many tokens are there * what is in the vault?
                 // what is in the vault *
@@ -91,14 +91,14 @@ impl<'info> Migrate<'info> {
         let accounts = Transfer {
             from: self.vault_to_ta.to_account_info(),
             to: self.payer_to_ta.to_account_info(),
-            authority: self.config.to_account_info(),
+            authority: self.vault.to_account_info(),
         };
 
         let signer_seeds: [&[&[u8]]; 1] = [&[
-            b"migration",
+            b"vault",
             self.mint_from.to_account_info().key.as_ref(),
             self.mint_to.to_account_info().key.as_ref(),
-            &self.config.bump,
+            &self.vault.bump,
         ]];
 
         let ctx = CpiContext::new_with_signer(

@@ -22,7 +22,7 @@ pub mod metadao_migrate {
         strategy: Strategy,
     ) -> Result<()> {
         ctx.accounts
-            .initialize(mint_from, mint_to, strategy, [ctx.bumps.config])
+            .initialize(mint_from, mint_to, strategy, [ctx.bumps.vault])
     }
 
     pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {

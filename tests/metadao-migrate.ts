@@ -5,6 +5,7 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from
 import { createAssociatedTokenAccountIdempotentInstruction, createInitializeMint2Instruction, createMintToInstruction, getAssociatedTokenAddressSync, getMinimumBalanceForRentExemptMint, MINT_SIZE } from "@solana/spl-token";
 import { TOKEN_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
+import { BN } from "bn.js";
 
 describe("metadao-migrate", () => {
   // Configure the client to use the local cluster.
@@ -48,27 +49,27 @@ describe("metadao-migrate", () => {
   const tokenProgram = TOKEN_PROGRAM_ID;
   const systemProgram = SYSTEM_PROGRAM_ID;
 
-  // Config
-  const config = PublicKey.findProgramAddressSync([Buffer.from("migration"), mintFrom.toBuffer(), mintTo.toBuffer()].concat(), program.programId)[0];
+  // Vault
+  const vault = PublicKey.findProgramAddressSync([Buffer.from("vault"), mintFrom.toBuffer(), mintTo.toBuffer()].concat(), program.programId)[0];
 
   // Token Accounts
-  const [payerTaFrom, payerTaTo, configTaFrom, configTaTo] = [
+  const [payerFromTa, payerToTa, vaultFromTa, vaultToTa] = [
         getAssociatedTokenAddressSync(mintFrom, payer, false, tokenProgram),
         getAssociatedTokenAddressSync(mintTo, payer, false, tokenProgram),
-        getAssociatedTokenAddressSync(mintFrom, config, true, tokenProgram),
-        getAssociatedTokenAddressSync(mintTo, config, true, tokenProgram)
+        getAssociatedTokenAddressSync(mintFrom, vault, true, tokenProgram),
+        getAssociatedTokenAddressSync(mintTo, vault, true, tokenProgram)
   ];
 
   const accounts = {
     admin,
-    config,
     mintFrom,
     mintTo,
     payer,
-    payerTaFrom,
-    payerTaTo,
-    configTaFrom,
-    configTaTo,
+    payerFromTa,
+    payerToTa,
+    vault,
+    vaultFromTa,
+    vaultToTa,
     tokenProgram,
     systemProgram
   }
@@ -97,10 +98,10 @@ describe("metadao-migrate", () => {
         ]
       ),
       ...[
-        { mint: mintFrom, authority: payer, ata: payerTaFrom },
-        { mint: mintTo, authority: payer, ata: payerTaTo },
-        { mint: mintFrom, authority: config, ata: configTaFrom },
-        { mint: mintTo, authority: config, ata: configTaTo },
+        { mint: mintFrom, authority: payer, ata: payerFromTa },
+        { mint: mintTo, authority: payer, ata: payerToTa },
+        { mint: mintFrom, authority: vault, ata: vaultFromTa },
+        { mint: mintTo, authority: vault, ata: vaultToTa },
       ]
       .flatMap((account) => [
         createAssociatedTokenAccountIdempotentInstruction(provider.publicKey, account.ata, account.authority, account.mint, tokenProgram),
@@ -122,6 +123,20 @@ describe("metadao-migrate", () => {
       ...accounts
     })
     .signers([adminKeypair])
+    .rpc()
+    .then(confirm)
+    .then(log);
+  });
+
+  it("Migrate", async () => {
+    // Add your test here.
+    const tx = await program.methods.migrate(
+      new BN(100_000_000)
+    )
+    .accountsStrict({
+      ...accounts
+    })
+    .signers([payerKeypair])
     .rpc()
     .then(confirm)
     .then(log);

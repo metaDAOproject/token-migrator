@@ -8,7 +8,7 @@ pub enum Strategy {
 
 #[account(discriminator = [1])]
 #[derive(InitSpace)]
-pub struct Config {
+pub struct Vault {
     pub mint_from: Pubkey,
     pub mint_to: Pubkey,
     pub strategy: Strategy,

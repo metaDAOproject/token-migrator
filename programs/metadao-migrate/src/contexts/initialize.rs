@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::{
     constants::ADMIN,
-    state::{Config, Strategy},
+    state::{Vault, Strategy},
 };
 
 #[derive(Accounts)]
@@ -16,11 +16,11 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = admin,
-        space = Config::DISCRIMINATOR.len() + Config::INIT_SPACE,
-        seeds = [b"migration", mint_from.as_ref(), mint_to.as_ref()],
+        space = Vault::DISCRIMINATOR.len() + Vault::INIT_SPACE,
+        seeds = [b"vault", mint_from.as_ref(), mint_to.as_ref()],
         bump
     )]
-    config: Account<'info, Config>,
+    vault: Account<'info, Vault>,
     system_program: Program<'info, System>,
 }
 
@@ -32,7 +32,7 @@ impl<'info> Initialize<'info> {
         strategy: Strategy,
         bump: [u8; 1],
     ) -> Result<()> {
-        self.config.set_inner(Config {
+        self.vault.set_inner(Vault {
             mint_from,
             mint_to,
             strategy,
