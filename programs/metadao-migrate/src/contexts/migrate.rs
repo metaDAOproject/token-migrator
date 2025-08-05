@@ -23,14 +23,14 @@ pub struct Migrate<'info> {
     payer_to_ta: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        token::authority = vault,
-        token::mint = mint_from
+        associated_token::authority = vault,
+        associated_token::mint = mint_from
     )]
     vault_from_ta: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
-        token::authority = vault,
-        token::mint = mint_to
+        associated_token::authority = vault,
+        associated_token::mint = mint_to
     )]
     vault_to_ta: Box<Account<'info, TokenAccount>>,
     #[account(
