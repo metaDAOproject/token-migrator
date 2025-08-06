@@ -5,6 +5,8 @@ pub mod contexts;
 pub use contexts::*;
 
 pub mod constants;
+pub mod events;
+
 pub mod state;
 pub use state::*;
 
@@ -15,6 +17,7 @@ pub mod metadao_migrate {
 
     use super::*;
 
+    #[instruction(discriminator = [0])]
     pub fn initialize(
         ctx: Context<Initialize>,
         mint_from: Pubkey,
@@ -25,6 +28,7 @@ pub mod metadao_migrate {
             .initialize(mint_from, mint_to, strategy, [ctx.bumps.vault])
     }
 
+    #[instruction(discriminator = [1])]
     pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
         ctx.accounts.migrate(amount)
     }

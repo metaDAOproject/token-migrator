@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
-use crate::state::Vault;
+use crate::{events::MigrateEvent, state::Vault};
 
 #[derive(Accounts)]
 pub struct Migrate<'info> {
@@ -82,6 +82,16 @@ impl<'info> Migrate<'info> {
             &signer_seeds,
         );
 
-        transfer(ctx, withdraw_amount)
+        transfer(ctx, withdraw_amount)?;
+
+        emit!(MigrateEvent {
+            payer: self.payer.key(),
+            mint_from: self.mint_from.key(),
+            mint_to: self.mint_to.key(),
+            deposit_amount: amount,
+            withdraw_amount
+        });
+
+        Ok(())
     }
 }
