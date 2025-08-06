@@ -13,11 +13,12 @@ pub enum Strategy {
 }
 
 impl Strategy {
-    #[inline(always)]
     /// # Withdraw Amount
     /// Calculates the amount of tokens the user can withdraw based upon the `Strategy` implemented.
+    #[inline(always)]
     pub fn withdraw_amount(self, amount: u64, supply_from: u64, supply_to: u64) -> Result<u64> {
-        Ok(match self {
+        // Calculate amount out
+        let amount = match self {
             Strategy::ProRata => u128::from(supply_to)
                 .saturating_mul(amount.into())
                 .saturating_div(supply_from.into())
@@ -38,7 +39,15 @@ impl Strategy {
                         .ok_or(ProgramError::ArithmeticOverflow)?
                 }
             }
-        })
+        };
+
+        // Ensure withdraw amount is not zero
+        if amount < 1 {
+            return Err(ProgramError::ArithmeticOverflow.into());
+        }
+
+        // Return amount
+        Ok(amount)
     }
 }
 
@@ -72,6 +81,12 @@ mod tests {
     fn test_fixed_div_10() {
         let strategy = Strategy::Fixed { e: -1 };
         assert_eq!(strategy.withdraw_amount(10, 100, 100).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_fixed_div_1000() {
+        let strategy = Strategy::Fixed { e: -3 };
+        assert!(strategy.withdraw_amount(10, 100, 100).is_err());
     }
 
     #[test]
