@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-metadao_migrate = "5biAh6pYRGu8YwrxX38L5yG7SL7uimNQERFF76FJ1oAh"
+token_migrator = "5biAh6pYRGu8YwrxX38L5yG7SL7uimNQERFF76FJ1oAh"
 
 [registry]
 url = "https://api.apr.dev"

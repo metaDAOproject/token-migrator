@@ -1,23 +1,30 @@
 #![allow(deprecated)]
-use anchor_lang::prelude::*;
+pub use anchor_lang::prelude::*;
 
 pub mod contexts;
 pub use contexts::*;
 
-pub mod constants;
-pub mod events;
-
 pub mod state;
 pub use state::*;
+
+pub mod events;
 
 declare_id!("5biAh6pYRGu8YwrxX38L5yG7SL7uimNQERFF76FJ1oAh");
 
 #[program]
-pub mod metadao_migrate {
+pub mod token_migrator {
 
     use super::*;
 
-    #[instruction(discriminator = [0])]
+    /// # Initialize
+    /// This instruction allows the `admin` keypair defined in `constants.rs` to initialize a new token migration strategy. It takes in 3 parameters:
+    ///
+    /// `mint_from` - the `Mint` we are migrating from.
+    /// `mint_to` - the `Mint` we are migrating to.
+    /// `strategy` - the `Strategy` we are using for migration.
+    ///
+    /// It assumes the `vaultFromAta` and `vaultToAta` accounts for this migration are initialized and the `vaultToAta` is correctly funded ahead of time. It performs these checks in the account struct.
+    #[instruction(discriminator = [1])]
     pub fn initialize(
         ctx: Context<Initialize>,
         mint_from: Pubkey,
@@ -28,7 +35,13 @@ pub mod metadao_migrate {
             .initialize(mint_from, mint_to, strategy, [ctx.bumps.vault])
     }
 
-    #[instruction(discriminator = [1])]
+    /// # Migrate
+    /// This instruction alows a user to migrate their token from the old token to the new one based upon a predefined token migration strategy. It assumes `userToTa` has been created ahead of time. It takes in a single parameter:
+    ///
+    /// `amount` - the amount of tokens the user wishes to migrate from the `mint_from` token.
+    ///
+    /// It also emits a `MigrationEvent` event to enable easy traceability onchain of all token migrations by users.
+    #[instruction(discriminator = [0])]
     pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
         ctx.accounts.migrate(amount)
     }

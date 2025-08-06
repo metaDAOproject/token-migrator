@@ -1,12 +1,21 @@
 use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
+/// # Strategy
+///
+/// Defines the strategy by which we perform a migration. There are two cases:
+///
+/// `ProRata` - Calculates a `withdraw_amount` based upon pro-rated supply of both tokens.
+/// `Fixed(i8)` - Calculates `withdraw_amount` by scaling the `amount` deposited up or down by `10^e`. Useful for decimal redenomination.
 pub enum Strategy {
     ProRata,
     Fixed(i8),
 }
 
 impl Strategy {
+    #[inline(always)]
+    /// # Withdraw Amount
+    /// Calculates the amount of tokens the user can withdraw based upon the `Strategy` implemented.
     pub fn withdraw_amount(self, amount: u64, supply_from: u64, supply_to: u64) -> Result<u64> {
         Ok(match self {
             Strategy::ProRata => u128::from(supply_to)
@@ -36,6 +45,7 @@ impl Strategy {
 #[account(discriminator = [1])]
 #[derive(InitSpace)]
 pub struct Vault {
+    pub admin: Pubkey,
     pub mint_from: Pubkey,
     pub mint_to: Pubkey,
     pub strategy: Strategy,
