@@ -1,39 +1,29 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { TokenMigrator } from "../target/types/token_migrator";
-import { PublicKey, Keypair } from "@solana/web3.js";
-import { 
-  getAssociatedTokenAddress,
+import { PublicKey } from "@solana/web3.js";
+import {
   createAssociatedTokenAccountInstruction,
-  getAccount
+  getAccount,
+  getAssociatedTokenAddressSync
 } from "@solana/spl-token";
 import fs from 'fs';
 
-const ADMIN_KEYPAIR = Keypair.fromSecretKey(
-  Buffer.from(JSON.parse(fs.readFileSync('/Users/jeremy/.config/solana/id.json', 'utf-8')))
-);
+const provider = anchor.AnchorProvider.env();
+const payer = provider.wallet["payer"];
 
 const MINT_FROM = new PublicKey("METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr"); 
 const MINT_TO = new PublicKey("HdABxaTrV276SM8F9tud1fnEmyigeHHkttwbKHekMYNx");
 
 async function main() {
-  const connection = new anchor.web3.Connection(
-    process.env.NEXT_PUBLIC_DEVNET_RPC_URL || "https://api.devnet.solana.com"
-  );
   
-  const wallet = new anchor.Wallet(ADMIN_KEYPAIR);
-  const provider = new anchor.AnchorProvider(connection, wallet, {
-    commitment: "confirmed"
-  });
-  
-  anchor.setProvider(provider);
   const program = anchor.workspace.TokenMigrator as Program<TokenMigrator>;
   
   // Derive vault PDA
   const [vaultPda] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("vault"),
-      ADMIN_KEYPAIR.publicKey.toBuffer(),
+      payer.publicKey.toBuffer(),
       MINT_FROM.toBuffer(),
       MINT_TO.toBuffer()
     ],
@@ -41,13 +31,13 @@ async function main() {
   );
   
   // Get vault ATAs
-  const vaultFromAta = await getAssociatedTokenAddress(
+  const vaultFromAta = getAssociatedTokenAddressSync(
     MINT_FROM,
     vaultPda,
     true
   );
   
-  const vaultToAta = await getAssociatedTokenAddress(
+  const vaultToAta = getAssociatedTokenAddressSync(
     MINT_TO,
     vaultPda,
     true
@@ -57,11 +47,11 @@ async function main() {
   const instructions = [];
   
   try {
-    await getAccount(connection, vaultFromAta);
+    await getAccount(provider.connection, vaultFromAta);
   } catch {
     instructions.push(
       createAssociatedTokenAccountInstruction(
-        ADMIN_KEYPAIR.publicKey,
+        payer.publicKey,
         vaultFromAta,
         vaultPda,
         MINT_FROM
@@ -70,11 +60,11 @@ async function main() {
   }
   
   try {
-    await getAccount(connection, vaultToAta);
+    await getAccount(provider.connection, vaultToAta);
   } catch {
     instructions.push(
       createAssociatedTokenAccountInstruction(
-        ADMIN_KEYPAIR.publicKey,
+        payer.publicKey,
         vaultToAta,
         vaultPda,
         MINT_TO
@@ -89,7 +79,7 @@ async function main() {
   }
   
   // Check if vault_to_ata has funds
-  const vaultToAccount = await getAccount(connection, vaultToAta);
+  const vaultToAccount = await getAccount(provider.connection, vaultToAta);
   if (vaultToAccount.amount === BigInt(0)) {
     console.log("\n❌ ERROR: The 'to' vault needs to be funded before initialization!");
     console.log(`Send ${MINT_TO.toString()} tokens to:`);
