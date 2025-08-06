@@ -5,7 +5,7 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1",
+    "@coral-xyz/anchor": "0.31.1",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.4"
   },
@@ -16,8 +16,8 @@
     "chai": "5.2.1",
     "mocha": "11.7.1",
     "prettier": "3.6.2",
-    "ts-node": "11.0.0-beta.1",
     "ts-mocha": "11.1.0",
+    "ts-node": "11.0.0-beta.1",
     "typescript": "5.9.2"
   }
 }

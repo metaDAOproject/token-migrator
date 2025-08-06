@@ -5,8 +5,8 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-token_migrator = "5biAh6pYRGu8YwrxX38L5yG7SL7uimNQERFF76FJ1oAh"
+[programs.devnet]
+token_migrator = "gr8tD6dY1HrJrxzoGKUWCvATpN2qTX2E3HBcPKuGY77"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,4 +16,6 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 10000000 tests/**/*.ts"
+initialize = "yarn run ts-node scripts/initialize.ts"
+migrate = "yarn run ts-node scripts/migrate.ts"
