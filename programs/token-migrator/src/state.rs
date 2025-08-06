@@ -9,7 +9,7 @@ use anchor_lang::prelude::*;
 /// `Fixed(i8)` - Calculates `withdraw_amount` by scaling the `amount` deposited up or down by `10^e`. Useful for decimal redenomination.
 pub enum Strategy {
     ProRata,
-    Fixed(i8),
+    Fixed { e: i8 },
 }
 
 impl Strategy {
@@ -23,7 +23,7 @@ impl Strategy {
                 .saturating_div(supply_from.into())
                 .try_into()
                 .map_err(|_| ProgramError::ArithmeticOverflow)?,
-            Strategy::Fixed(e) => {
+            Strategy::Fixed { e} => {
                 if e == 0 {
                     amount
                 } else if e < 0 {
@@ -58,19 +58,19 @@ mod tests {
 
     #[test]
     fn test_fixed_0() {
-        let strategy = Strategy::Fixed(0);
+        let strategy = Strategy::Fixed { e: 0 };
         assert_eq!(strategy.withdraw_amount(10, 100, 100).unwrap(), 10);
     }
 
     #[test]
     fn test_fixed_mul_10() {
-        let strategy = Strategy::Fixed(1);
+        let strategy = Strategy::Fixed { e: 1 };
         assert_eq!(strategy.withdraw_amount(10, 100, 1000).unwrap(), 100);
     }
 
     #[test]
     fn test_fixed_div_10() {
-        let strategy = Strategy::Fixed(-1);
+        let strategy = Strategy::Fixed { e: -1 };
         assert_eq!(strategy.withdraw_amount(10, 100, 100).unwrap(), 1);
     }
 
