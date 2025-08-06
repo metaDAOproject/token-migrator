@@ -9,7 +9,7 @@ pub struct Initialize<'info> {
     #[account(
         mut,
         // ℹ️ NOTE: Remove `address` constraint to make contract permissionless.
-        address = pubkey!("gr8zGEubscQFgPQ5srfFJg4HRVo2zVFm8YV4CRcFYp4")
+        address = pubkey!("ELT1uRmtFvYP6WSrc4mCZaW7VVbcdkcKAj39aHSVCmwH")
     )]
     admin: Signer<'info>,
 
