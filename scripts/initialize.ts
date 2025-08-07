@@ -11,8 +11,8 @@ import {
 const provider = anchor.AnchorProvider.env();
 const payer = provider.wallet["payer"];
 
-const MINT_FROM = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"); 
-const MINT_TO = new PublicKey("CL2woZ6wS9KwnECmUg5B5QHhLMDprMzUp19W5KDAYeQf");
+const MINT_FROM = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"); // This is inbound from the user
+const MINT_TO = new PublicKey("CL2woZ6wS9KwnECmUg5B5QHhLMDprMzUp19W5KDAYeQf"); // This is what the user expects out
 
 async function main() {
   
