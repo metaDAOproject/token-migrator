@@ -7,13 +7,12 @@ import {
   getAccount,
   getAssociatedTokenAddressSync
 } from "@solana/spl-token";
-import fs from 'fs';
 
 const provider = anchor.AnchorProvider.env();
 const payer = provider.wallet["payer"];
 
-const MINT_FROM = new PublicKey("METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr"); 
-const MINT_TO = new PublicKey("HdABxaTrV276SM8F9tud1fnEmyigeHHkttwbKHekMYNx");
+const MINT_FROM = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"); 
+const MINT_TO = new PublicKey("CL2woZ6wS9KwnECmUg5B5QHhLMDprMzUp19W5KDAYeQf");
 
 async function main() {
   
@@ -83,13 +82,13 @@ async function main() {
   if (vaultToAccount.amount === BigInt(0)) {
     console.log("\n❌ ERROR: The 'to' vault needs to be funded before initialization!");
     console.log(`Send ${MINT_TO.toString()} tokens to:`);
-    console.log(vaultToAccount.owner.toString());
+    console.log(vaultToAccount.owner.toString());    
     console.log("\nThis ensures users can receive tokens when they migrate.");
     return;
   }
   
   console.log("\n✅ Vault ATAs ready:");
-  console.log(`To vault (sends tokens to users): ${vaultToAccount.owner.toString()}`);
+  console.log(`To vault (sends tokens to users): ${(vaultToAccount.owner.toString())}`);
   
   const tx = await program.methods
     .initialize(
@@ -97,9 +96,14 @@ async function main() {
       MINT_TO,
       { fixed: { e: 0 } }
     )
-    .rpc();
-    
-  console.log("Initialized:", tx);
+    .transaction();
+  
+  try {
+    const signature = await provider.sendAndConfirm(tx);
+    console.log("Initialized successfully! Signature:", signature);
+  } catch (error) {
+    console.error("Error sending transaction:", error);
+  }
 }
 
 main().catch(console.error);
