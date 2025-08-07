@@ -9,6 +9,20 @@ pub use state::*;
 
 pub mod events;
 
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "token-migrator",
+    project_url: "https://metadao.fi",
+    contacts: "telegram:metaproph3t,telegram:kollan_house",
+    source_code: "https://github.com/metaDAOproject/token-migrator",
+    source_release: "v0.1.0",
+    policy: "The market will decide whether we pay a bug bounty.",
+    acknowledgements: "DCF = (CF1 / (1 + r)^1) + (CF2 / (1 + r)^2) + ... (CFn / (1 + r)^n)"
+}
+
 declare_id!("gr8tqq2ripsM6N46gLWpSDXtdrH6J9jaXoyya1ELC9t");
 
 #[program]
