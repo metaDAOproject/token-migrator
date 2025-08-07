@@ -91,6 +91,11 @@ describe("token-migrator", () => {
     getAssociatedTokenAddressSync(mintTo, vault, true),
   ];
 
+  const eventAuthority = PublicKey.findProgramAddressSync(
+    [Buffer.from("__event_authority")],
+    program.programId,
+  )[0];
+
   const accounts = {
     admin,
     mintFrom,
@@ -103,6 +108,8 @@ describe("token-migrator", () => {
     vaultToAta,
     tokenProgram,
     systemProgram,
+    eventAuthority,
+    program: program.programId,
   };
 
   describe("Account Setup", async () => {

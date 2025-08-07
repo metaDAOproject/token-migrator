@@ -4,6 +4,7 @@ use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 use crate::{events::MigrateEvent, state::Vault};
 
 #[derive(Accounts)]
+#[event_cpi]
 pub struct Migrate<'info> {
     #[account(mut)]
     user: Signer<'info>,
@@ -50,11 +51,11 @@ impl<'info> Migrate<'info> {
     /// 2. Deposit the correct `amount` from `userFromTa` to `vaultFromAta`.
     /// 3. Withdraw `withdraw_amount` from `vaultToAta` to `userToTa`.
     /// 4. Emit a `MigrateEvent`.
-    pub fn migrate(&mut self, amount: u64) -> Result<()> {
-        let withdraw_amount = self.withdraw_amount(amount)?;
-        self.deposit_tokens(amount)?;
-        self.withdraw_tokens(withdraw_amount)?;
-        self.emit_migrate_event(amount, withdraw_amount)
+    pub fn migrate(ctx: Context<Self>, amount: u64) -> Result<()> {
+        let withdraw_amount = ctx.accounts.withdraw_amount(amount)?;
+        ctx.accounts.deposit_tokens(amount)?;
+        ctx.accounts.withdraw_tokens(withdraw_amount)?;
+        Self::emit_migrate_event(ctx, amount, withdraw_amount)
     }
 
     /// # Deposit Tokens
@@ -109,11 +110,11 @@ impl<'info> Migrate<'info> {
     ///
     /// Emits a `MigrateEvent` enabling us to easily index all token migrations.
     #[inline(always)]
-    fn emit_migrate_event(&mut self, amount: u64, withdraw_amount: u64) -> Result<()> {
-        emit!(MigrateEvent {
-            user: self.user.key(),
-            mint_from: self.mint_from.key(),
-            mint_to: self.mint_to.key(),
+    fn emit_migrate_event(ctx: Context<Self>, amount: u64, withdraw_amount: u64) -> Result<()> {
+        emit_cpi!(MigrateEvent {
+            user: ctx.accounts.user.key(),
+            mint_from: ctx.accounts.mint_from.key(),
+            mint_to: ctx.accounts.mint_to.key(),
             deposit_amount: amount,
             withdraw_amount
         });
