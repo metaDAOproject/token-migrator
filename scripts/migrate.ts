@@ -9,11 +9,12 @@ import {
   getAccount
 } from "@solana/spl-token";
 import BN from "bn.js";
+import { ADMIN_PUBLIC_KEY } from "./consts";
 
 const PROGRAM_ID = new PublicKey("gr8tD6dY1HrJrxzoGKUWCvATpN2qTX2E3HBcPKuGY77");
-const MINT_FROM  = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr");
-const MINT_TO    = new PublicKey("CL2woZ6wS9KwnECmUg5B5QHhLMDprMzUp19W5KDAYeQf");
-const AMOUNT     = new BN(100_000_000); // raw amount
+const MINT_FROM  = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"); // This is inbound from the user
+const MINT_TO    = new PublicKey("CL2woZ6wS9KwnECmUg5B5QHhLMDprMzUp19W5KDAYeQf"); // This is what the user expects out
+const AMOUNT     = new BN(10_000_000); // raw amount
 
 const provider = anchor.AnchorProvider.env();
 const payer    = provider.wallet["payer"];
@@ -24,7 +25,7 @@ async function main() {
   const [vault] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("vault"),
-      payer.publicKey.toBuffer(),
+      ADMIN_PUBLIC_KEY.toBuffer(),
       MINT_FROM.toBuffer(),
       MINT_TO.toBuffer()
     ],
@@ -36,8 +37,8 @@ async function main() {
     program.programId
   );
 
-  const userFromTa  = getAssociatedTokenAddressSync(MINT_FROM, payer.publicKey);
-  const userToTa    = getAssociatedTokenAddressSync(MINT_TO,   payer.publicKey);
+  const userFromTa  = getAssociatedTokenAddressSync(MINT_FROM, payer.publicKey, true);
+  const userToTa    = getAssociatedTokenAddressSync(MINT_TO,   payer.publicKey, true);
   const vaultFromAta= getAssociatedTokenAddressSync(MINT_FROM, vault, true);
   const vaultToAta  = getAssociatedTokenAddressSync(MINT_TO,   vault, true);
 
