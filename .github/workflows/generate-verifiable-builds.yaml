@@ -17,7 +17,7 @@ jobs:
        with:
          program: token-migrator
          anchor-version: '0.31.1'
-         solana-cli-version: '2.2.21'
+         solana-cli-version: '2.3.0'
          features: 'production' 
      - run: 'git pull --rebase'
      - run: cp target/deploy/token-migrator.so ./verifiable-builds
