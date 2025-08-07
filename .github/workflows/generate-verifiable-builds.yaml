@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  generate-verifiable-launchpad:
+  generate-verifiable-token-migrator:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +17,7 @@ jobs:
           solana-cli-version: '2.2.21'
           features: 'production' 
       - run: 'git pull --rebase'
-      - run: cp target/deploy/launchpad.so ./verifiable-builds
+      - run: cp target/deploy/token-migrator.so ./verifiable-builds
       - name: Commit verifiable build back to mainline
         uses: EndBug/add-and-commit@v9.1.4
         with:

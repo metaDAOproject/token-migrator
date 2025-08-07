@@ -19,3 +19,9 @@ wallet = "~/.config/solana/id.json"
 test = "yarn run ts-mocha -p ./tsconfig.json -t 10000000 tests/**/*.ts"
 initialize = "yarn run ts-node scripts/initialize.ts"
 migrate = "yarn run ts-node scripts/migrate.ts"
+
+[workspace.metadata]
+solana-version = "2.2.21"  
+
+[[workspace.metadata.verifiable]]
+program = "token_migrator"
