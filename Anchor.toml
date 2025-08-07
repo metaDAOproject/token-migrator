@@ -5,8 +5,8 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.devnet]
-token_migrator = "gr8tD6dY1HrJrxzoGKUWCvATpN2qTX2E3HBcPKuGY77"
+[programs.localnet]
+token_migrator = "gr8tqq2ripsM6N46gLWpSDXtdrH6J9jaXoyya1ELC9t"
 
 [registry]
 url = "https://api.apr.dev"
