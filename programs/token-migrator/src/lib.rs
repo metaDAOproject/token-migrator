@@ -43,6 +43,6 @@ pub mod token_migrator {
     /// It also emits a `MigrationEvent` event to enable easy traceability onchain of all token migrations by users.
     #[instruction(discriminator = [0])]
     pub fn migrate(ctx: Context<Migrate>, amount: u64) -> Result<()> {
-        ctx.accounts.migrate(amount)
+        Migrate::migrate(ctx, amount)
     }
 }
