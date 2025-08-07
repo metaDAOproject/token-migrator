@@ -37,8 +37,8 @@ async function main() {
     program.programId
   );
 
-  const userFromTa  = getAssociatedTokenAddressSync(MINT_FROM, payer.publicKey);
-  const userToTa    = getAssociatedTokenAddressSync(MINT_TO,   payer.publicKey);
+  const userFromTa  = getAssociatedTokenAddressSync(MINT_FROM, payer.publicKey, true);
+  const userToTa    = getAssociatedTokenAddressSync(MINT_TO,   payer.publicKey, true);
   const vaultFromAta= getAssociatedTokenAddressSync(MINT_FROM, vault, true);
   const vaultToAta  = getAssociatedTokenAddressSync(MINT_TO,   vault, true);
 
