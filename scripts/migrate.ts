@@ -11,9 +11,9 @@ import {
 import BN from "bn.js";
 import { ADMIN_PUBLIC_KEY } from "./consts";
 
-const PROGRAM_ID = new PublicKey("gr8tD6dY1HrJrxzoGKUWCvATpN2qTX2E3HBcPKuGY77");
-const MINT_FROM  = new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"); // This is inbound from the user
-const MINT_TO    = new PublicKey("CL2woZ6wS9KwnECmUg5B5QHhLMDprMzUp19W5KDAYeQf"); // This is what the user expects out
+const PROGRAM_ID = new PublicKey("gr8tqq2ripsM6N46gLWpSDXtdrH6J9jaXoyya1ELC9t");
+const MINT_FROM  = new PublicKey("METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr"); // This is inbound from the user
+const MINT_TO    = new PublicKey("METAwkXcqyXKy1AtsSgJ8JiUHwGCafnZL38n3vYmeta"); // This is what the user expects out
 const AMOUNT     = new BN(10_000_000); // raw amount
 
 const provider = anchor.AnchorProvider.env();

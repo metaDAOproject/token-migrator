@@ -9,7 +9,7 @@ pub use state::*;
 
 pub mod events;
 
-declare_id!("gr8tD6dY1HrJrxzoGKUWCvATpN2qTX2E3HBcPKuGY77");
+declare_id!("gr8tqq2ripsM6N46gLWpSDXtdrH6J9jaXoyya1ELC9t");
 
 #[program]
 pub mod token_migrator {
