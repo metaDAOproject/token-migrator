@@ -13,6 +13,12 @@ jobs:
    runs-on: ubuntu-22.04
    steps:
      - uses: actions/checkout@v4
+     
+     - name: Install system dependencies
+       run: |
+         sudo apt-get update
+         sudo apt-get install -y libudev-dev pkg-config
+     
      - uses: metadaoproject/anchor-verifiable-build@v0.5
        with:
          program: token-migrator
