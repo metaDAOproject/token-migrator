@@ -4,10 +4,11 @@ import { PublicKey, AccountInfo } from "@solana/web3.js";
 import type { TokenMigrator } from "./types/token_migrator.js";
 // Import the JSON IDL with the required type assertion for ESM
 import TokenMigratorIDL from "./idl/token_migrator.json" with { type: "json" };
-import { TOKEN_MIGRATOR_ADMIN, TOKEN_PROGRAM_ID } from "./constants.js";
+import { TOKEN_MIGRATOR_ADMIN } from "./constants.js";
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import BN from "bn.js";
 import { Vault, Strategy } from "./types/index.js";
