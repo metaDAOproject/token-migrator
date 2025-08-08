@@ -19,8 +19,8 @@
     "build": "rm -rf ./dist && mkdir -p ./src/v0.1/idl ./src/v0.1/types && cp ../target/types/* ./src/v0.1/types || true && cp ../target/idl/token_migrator.json ./src/v0.1/idl/ || true && yarn lint:fix && yarn tsc"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1",
-    "@solana/web3.js": "^1.95.0",
+    "@coral-xyz/anchor": "=0.31.1",
+    "@solana/web3.js": "=1.98.4",
     "bn.js": "^5.2.1"
   },
   "devDependencies": {

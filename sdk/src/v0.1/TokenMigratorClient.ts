@@ -10,12 +10,11 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import BN from "bn.js";
-import { Vault, Strategy, MigrateEvent } from "./types/index.js";
+import { Vault, Strategy } from "./types/index.js";
 import {
   getVaultAddr,
   getVaultFromAtaAddr,
   getVaultToAtaAddr,
-  getEventAuthorityAddr,
 } from "./utils/pda.js";
 
 export type CreateTokenMigratorClientParams = {
@@ -139,28 +138,9 @@ export class TokenMigratorClient {
     user: PublicKey = this.provider.publicKey,
     payer: PublicKey = this.provider.publicKey,
   ) {
-    const [vault] = getVaultAddr(
-      this.tokenMigrator.programId,
-      TOKEN_MIGRATOR_ADMIN,
-      mintFrom,
-      mintTo,
-    );
-
-    const [vaultFromAta] = getVaultFromAtaAddr(
-      vault,
-      mintFrom,
-      TOKEN_PROGRAM_ID,
-    );
-
-    const [vaultToAta] = getVaultToAtaAddr(vault, mintTo, TOKEN_PROGRAM_ID);
-
     const userFromTa = getAssociatedTokenAddressSync(mintFrom, user, true);
 
     const userToTa = getAssociatedTokenAddressSync(mintTo, user, true);
-
-    const [eventAuthority] = getEventAuthorityAddr(
-      this.tokenMigrator.programId,
-    );
 
     return this.tokenMigrator.methods
       .migrate(amount)
@@ -197,8 +177,6 @@ export class TokenMigratorClient {
     amount: BN,
     mintFromSupply?: BN,
     mintToSupply?: BN,
-    mintFromDecimals?: number,
-    mintToDecimals?: number,
   ): BN {
     if ("proRata" in vault.strategy) {
       if (!mintFromSupply || !mintToSupply) {
