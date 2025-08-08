@@ -1,0 +1,32 @@
+{
+  "name": "@metadaoproject/token-migrator",
+  "version": "0.1.0-alpha.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "BSL-1.0",
+  "files": [
+    "/dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./v0.1": "./dist/v0.1/index.js"
+  },
+  "scripts": {
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "build": "rm -rf ./dist && mkdir -p ./src/v0.1/idl ./src/v0.1/types && cp ../target/types/* ./src/v0.1/types || true && cp ../target/idl/token_migrator.json ./src/v0.1/idl/ || true && yarn lint:fix && yarn tsc"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/web3.js": "^1.95.0",
+    "bn.js": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.5"
+  }
+}
