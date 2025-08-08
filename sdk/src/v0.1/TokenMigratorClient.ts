@@ -1,8 +1,16 @@
-import { AnchorProvider, Program } from "@coral-xyz/anchor";
-import { PublicKey, AccountInfo } from "@solana/web3.js";
-// Import TypeScript types from the generated types file
+// src/TokenMigratorClient.ts
+import {
+  AnchorProvider,
+  Program,
+  type Wallet as AnchorWallet,
+} from "@coral-xyz/anchor";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  type Commitment,
+} from "@solana/web3.js";
 import type { TokenMigrator } from "./types/token_migrator.js";
-// Import the JSON IDL with the required type assertion for ESM
 import TokenMigratorIDL from "./idl/token_migrator.json" with { type: "json" };
 import { TOKEN_MIGRATOR_ADMIN } from "./constants.js";
 import {
@@ -11,25 +19,67 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import BN from "bn.js";
-import { Vault, Strategy } from "./types/index.js";
+import type { Vault, Strategy } from "./types/index.js";
 import {
   getVaultAddr,
   getVaultFromAtaAddr,
   getVaultToAtaAddr,
 } from "./utils/pda.js";
 
-export type CreateTokenMigratorClientParams = {
-  provider: AnchorProvider;
-  tokenMigratorProgramId?: PublicKey;
+type WalletLike = {
+  publicKey: PublicKey;
+  signTransaction(tx: Transaction): Promise<Transaction>;
+  signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 };
 
+export type CreateTokenMigratorClientParams = {
+  connection: Connection | string;
+  wallet?: WalletLike; // optional; defaults to read-only wallet
+  programId?: PublicKey; // optional; falls back to IDL.address
+  commitment?: Commitment; // default "confirmed"
+  readonlyPubkey?: PublicKey; // optional override for read-only wallet
+};
+
+const DEFAULT_PUBKEY = new PublicKey(
+  "E2UxCwxi5CqbUtaibCioT8g4EpCRpX8r8M2bXAjG8jNE",
+);
+
+function makeReadOnlyWallet(pubkey: PublicKey = DEFAULT_PUBKEY): WalletLike {
+  return {
+    publicKey: pubkey,
+    async signTransaction() {
+      throw new Error("Read-only wallet cannot sign transactions");
+    },
+    async signAllTransactions() {
+      throw new Error("Read-only wallet cannot sign transactions");
+    },
+  };
+}
+
 export class TokenMigratorClient {
-  public tokenMigrator: Program<TokenMigrator>;
+  public wallet: WalletLike;
+  public connection: Connection;
   public provider: AnchorProvider;
+  public tokenMigrator: Program<TokenMigrator>;
 
   private constructor(params: CreateTokenMigratorClientParams) {
-    this.provider = params.provider;
-    this.tokenMigrator = new Program(TokenMigratorIDL as any, this.provider);
+    this.connection =
+      typeof params.connection === "string"
+        ? new Connection(params.connection, params.commitment ?? "confirmed")
+        : params.connection;
+
+    this.wallet = params.wallet ?? makeReadOnlyWallet(params.readonlyPubkey);
+
+    this.provider = new AnchorProvider(
+      this.connection,
+      this.wallet as unknown as AnchorWallet,
+      { commitment: params.commitment ?? "confirmed" },
+    );
+
+    this.tokenMigrator = new Program<TokenMigrator>(
+      TokenMigratorIDL as any,
+      this.provider,
+    );
   }
 
   static createClient(
@@ -50,42 +100,34 @@ export class TokenMigratorClient {
     return await this.tokenMigrator.account.vault.fetchNullable(vault);
   }
 
-  deserializeVault(accountInfo: AccountInfo<Buffer>): Vault {
+  deserializeVault(accountInfo: { data: Buffer }): Vault {
     return this.tokenMigrator.coder.accounts.decode("vault", accountInfo.data);
   }
 
   deserializeMigrateEvent(data: Buffer): any {
-    // Returns the raw decoded event - cast to MigrateEvent type as needed
     return this.tokenMigrator.coder.events.decode(data.toString("hex"));
   }
 
-  /**
-   * Creates a ProRata strategy object
-   */
   createProRataStrategy(): Strategy {
     return { proRata: {} };
   }
 
-  /**
-   * Creates a Fixed strategy object with specified exponent
-   * @param e - The exponent for 10^e scaling
-   */
   createFixedStrategy(e: number): Strategy {
     return { fixed: { e } };
   }
 
   /**
    * Initialize a new token migration vault (admin only)
-   * @param mintFrom - The mint we are migrating from
-   * @param mintTo - The mint we are migrating to
-   * @param strategy - The migration strategy (ProRata or Fixed)
-   * @param payer - The payer for account creation (defaults to provider.publicKey)
+   * @param mintFrom - Source mint
+   * @param mintTo - Destination mint
+   * @param strategy - { proRata: {} } or { fixed: { e } }
+   * @param payer - Defaults to this.wallet.publicKey
    */
   initializeIx(
     mintFrom: PublicKey,
     mintTo: PublicKey,
     strategy: Strategy,
-    payer: PublicKey = this.provider.publicKey,
+    payer: PublicKey = this.wallet.publicKey,
   ) {
     const [vault] = getVaultAddr(
       this.tokenMigrator.programId,
@@ -99,7 +141,6 @@ export class TokenMigratorClient {
       mintFrom,
       TOKEN_PROGRAM_ID,
     );
-
     const [vaultToAta] = getVaultToAtaAddr(vault, mintTo, TOKEN_PROGRAM_ID);
 
     return this.tokenMigrator.methods
@@ -108,7 +149,6 @@ export class TokenMigratorClient {
         admin: TOKEN_MIGRATOR_ADMIN,
       })
       .preInstructions([
-        // Create vault's token accounts if they don't exist
         createAssociatedTokenAccountIdempotentInstruction(
           payer,
           vaultFromAta,
@@ -125,22 +165,21 @@ export class TokenMigratorClient {
   }
 
   /**
-   * Migrate tokens from old mint to new mint
-   * @param mintFrom - The mint we are migrating from
-   * @param mintTo - The mint we are migrating to
-   * @param amount - The amount of tokens to migrate
-   * @param user - The user performing the migration (defaults to provider.publicKey)
-   * @param payer - The payer for account creation (defaults to provider.publicKey)
+   * Build migrate instruction(s)
+   * @param mintFrom - Source mint
+   * @param mintTo - Destination mint
+   * @param amount - Amount to migrate
+   * @param user - Defaults to this.wallet.publicKey
+   * @param payer - Defaults to this.wallet.publicKey
    */
   migrateIx(
     mintFrom: PublicKey,
     mintTo: PublicKey,
     amount: BN,
-    user: PublicKey = this.provider.publicKey,
-    payer: PublicKey = this.provider.publicKey,
+    user: PublicKey = this.wallet.publicKey,
+    payer: PublicKey = this.wallet.publicKey,
   ) {
     const userFromTa = getAssociatedTokenAddressSync(mintFrom, user, true);
-
     const userToTa = getAssociatedTokenAddressSync(mintTo, user, true);
 
     return this.tokenMigrator.methods
@@ -154,7 +193,6 @@ export class TokenMigratorClient {
         program: this.tokenMigrator.programId,
       })
       .preInstructions([
-        // Create user's destination token account if it doesn't exist
         createAssociatedTokenAccountIdempotentInstruction(
           payer,
           userToTa,
@@ -165,13 +203,9 @@ export class TokenMigratorClient {
   }
 
   /**
-   * Helper method to calculate expected output amount for a migration
-   * @param vault - The vault account data
-   * @param amount - The input amount
-   * @param mintFromSupply - Total supply of the from mint (for ProRata)
-   * @param mintToSupply - Total supply of the to mint (for ProRata)
-   * @param mintFromDecimals - Decimals of the from mint (for Fixed)
-   * @param mintToDecimals - Decimals of the to mint (for Fixed)
+   * Calculate expected output amount
+   * - ProRata: out = amount * mintToSupply / mintFromSupply
+   * - Fixed:   out = amount * 10^e  (or / 10^|e| if e < 0)
    */
   calculateMigrationAmount(
     vault: Vault,
@@ -183,11 +217,9 @@ export class TokenMigratorClient {
       if (!mintFromSupply || !mintToSupply) {
         throw new Error("Mint supplies required for ProRata strategy");
       }
-      // ProRata: withdraw_amount = (amount * mintToSupply) / mintFromSupply
       return amount.mul(mintToSupply).div(mintFromSupply);
     } else if ("fixed" in vault.strategy) {
       const e = vault.strategy.fixed.e;
-      // Fixed: withdraw_amount = amount * 10^e
       if (e >= 0) {
         return amount.mul(new BN(10).pow(new BN(e)));
       } else {
@@ -197,29 +229,19 @@ export class TokenMigratorClient {
     throw new Error("Unknown strategy type");
   }
 
-  /**
-   * Fetch all vaults initialized by the admin
-   */
   async getAllVaults(): Promise<
-    Array<{
-      publicKey: PublicKey;
-      account: Vault;
-    }>
+    Array<{ publicKey: PublicKey; account: Vault }>
   > {
-    const vaults = await this.tokenMigrator.account.vault.all([
+    return await this.tokenMigrator.account.vault.all([
       {
         memcmp: {
-          offset: 8, // After discriminator
+          offset: 8, // discriminator
           bytes: TOKEN_MIGRATOR_ADMIN.toBase58(),
         },
       },
     ]);
-    return vaults;
   }
 
-  /**
-   * Check if a vault exists for a given migration pair
-   */
   async vaultExists(mintFrom: PublicKey, mintTo: PublicKey): Promise<boolean> {
     const [vault] = getVaultAddr(
       this.tokenMigrator.programId,
@@ -227,7 +249,7 @@ export class TokenMigratorClient {
       mintFrom,
       mintTo,
     );
-    const vaultAccount = await this.fetchVault(vault);
-    return vaultAccount !== null;
+    const v = await this.fetchVault(vault);
+    return v !== null;
   }
 }
