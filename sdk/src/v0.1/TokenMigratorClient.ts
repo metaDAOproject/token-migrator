@@ -40,7 +40,9 @@ export type CreateTokenMigratorClientParams = {
   readonlyPubkey?: PublicKey; // optional override for read-only wallet
 };
 
-const DEFAULT_PUBKEY = new PublicKey("111111111111111111111111aa111111");
+const DEFAULT_PUBKEY = new PublicKey(
+  "E2UxCwxi5CqbUtaibCioT8g4EpCRpX8r8M2bXAjG8jNE",
+);
 
 function makeReadOnlyWallet(pubkey: PublicKey = DEFAULT_PUBKEY): WalletLike {
   return {
