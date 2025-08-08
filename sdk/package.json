@@ -1,6 +1,6 @@
 {
   "name": "@metadaoproject/token-migrator",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.5",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
