@@ -11,8 +11,8 @@ import {
 const provider = anchor.AnchorProvider.env();
 const payer = provider.wallet["payer"];
 
-const MINT_FROM = new PublicKey("METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr"); // This is inbound from the user
-const MINT_TO = new PublicKey("METAwkXcqyXKy1AtsSgJ8JiUHwGCafnZL38n3vYmeta"); // This is what the user expects out
+const MINT_FROM = new PublicKey("ib5CXwoqnMX2BvL6G9Kz69xiAequ6qMiCwuMhVsmeta"); // This is inbound from the user
+const MINT_TO = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // This is what the user expects out
 
 async function main() {
   
@@ -94,7 +94,7 @@ async function main() {
     .initialize(
       MINT_FROM,
       MINT_TO,
-      { fixed: { e: 0 } }
+      { proRata: {} } 
     )
     .transaction();
   
