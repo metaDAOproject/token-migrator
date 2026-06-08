@@ -6,11 +6,7 @@ use crate::state::{Strategy, Vault};
 #[derive(Accounts)]
 #[instruction(mint_from: Pubkey, mint_to: Pubkey)]
 pub struct Initialize<'info> {
-    #[account(
-        mut,
-        // ℹ️ NOTE: Remove `address` constraint to make contract permissionless.
-        address = pubkey!("ELT1uRmtFvYP6WSrc4mCZaW7VVbcdkcKAj39aHSVCmwH")
-    )]
+    #[account(mut)]
     admin: Signer<'info>,
 
     // Ensure our vaults were initialized in preInstructions
@@ -45,6 +41,8 @@ impl<'info> Initialize<'info> {
         strategy: Strategy,
         bump: [u8; 1],
     ) -> Result<()> {
+        strategy.validate()?;
+
         self.vault.set_inner(Vault {
             admin: self.admin.key(),
             mint_from,
