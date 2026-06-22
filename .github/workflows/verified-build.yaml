@@ -1,0 +1,50 @@
+name: verified-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  verified-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SOLANA_VERIFY_VERSION: "0.4.1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: solana-developers/github-actions/extract-versions@860d4e7d3afc9f180f3c5016593a1e86e77eede4 # v0.2.5
+        id: versions
+
+      - uses: solana-developers/github-actions/setup-all@860d4e7d3afc9f180f3c5016593a1e86e77eede4 # v0.2.5
+        with:
+          solana_version: ${{ steps.versions.outputs.solana_version }}
+          anchor_version: ${{ steps.versions.outputs.anchor_version }}
+          verify_version: ${{ env.SOLANA_VERIFY_VERSION }}
+
+      - name: Build verified
+        uses: solana-developers/github-actions/build-verified@860d4e7d3afc9f180f3c5016593a1e86e77eede4 # v0.2.5
+        with:
+          program: token_migrator
+          features: mainnet
+
+      - name: Print verified build hash
+        run: solana-verify get-executable-hash target/deploy/token_migrator.so
+
+      - name: Sync with remote before committing
+        run: git pull --rebase
+
+      - name: Copy verifiable build into repo
+        run: |
+          mkdir -p verifiable-builds
+          cp target/deploy/token_migrator.so verifiable-builds/
+
+      - name: Commit verifiable build back to master
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
+        with:
+          default_author: github_actions
+          message: "Update token_migrator verifiable build"
