@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+use crate::errors::MigratorError;
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 /// # Strategy
 ///
@@ -12,7 +14,30 @@ pub enum Strategy {
     Fixed { e: i8 },
 }
 
+/// Maximum magnitude of the `Fixed` exponent. `10^19` is the largest power of
+/// ten that fits in a `u64` (`10^20` overflows), so bounding `|e| <= 19` keeps
+/// the `10u64.pow(|e|)` scaling in `withdraw_amount` from overflowing and rules
+/// out the `i8::MIN` negation panic.
+pub const MAX_FIXED_EXPONENT: u8 = 19;
+
 impl Strategy {
+    /// # Validate
+    /// Ensures the strategy parameters are within safe bounds before the vault
+    /// is persisted. For `Fixed`, the exponent magnitude must be
+    /// `<= MAX_FIXED_EXPONENT` so the `10u64.pow(|e|)` scaling in
+    /// `withdraw_amount` cannot overflow. `ProRata` carries no parameters and is
+    /// always valid.
+    pub fn validate(&self) -> Result<()> {
+        if let Strategy::Fixed { e } = self {
+            require!(
+                e.unsigned_abs() <= MAX_FIXED_EXPONENT,
+                MigratorError::ExponentOutOfRange
+            );
+        }
+
+        Ok(())
+    }
+
     /// # Withdraw Amount
     /// Calculates the amount of tokens the user can withdraw based upon the `Strategy` implemented.
     #[inline(always)]
@@ -93,5 +118,25 @@ mod tests {
     fn test_pro_rata() {
         let strategy = Strategy::ProRata;
         assert_eq!(strategy.withdraw_amount(10, 100, 100).unwrap(), 10);
+    }
+
+    #[test]
+    fn test_validate_pro_rata_ok() {
+        assert!(Strategy::ProRata.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_fixed_within_bounds_ok() {
+        assert!(Strategy::Fixed { e: 0 }.validate().is_ok());
+        assert!(Strategy::Fixed { e: 19 }.validate().is_ok());
+        assert!(Strategy::Fixed { e: -19 }.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_fixed_out_of_bounds_err() {
+        assert!(Strategy::Fixed { e: 20 }.validate().is_err());
+        assert!(Strategy::Fixed { e: -20 }.validate().is_err());
+        assert!(Strategy::Fixed { e: i8::MAX }.validate().is_err());
+        assert!(Strategy::Fixed { e: i8::MIN }.validate().is_err());
     }
 }

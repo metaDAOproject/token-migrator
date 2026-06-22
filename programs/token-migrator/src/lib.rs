@@ -9,6 +9,8 @@ pub use state::*;
 
 pub mod events;
 
+pub mod errors;
+
 #[cfg(not(feature = "no-entrypoint"))]
 use solana_security_txt::security_txt;
 

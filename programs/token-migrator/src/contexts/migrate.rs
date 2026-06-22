@@ -125,7 +125,7 @@ impl<'info> Migrate<'info> {
     /// # Supply From
     ///
     /// Calculates supply of `from` token to simulate a token burn. This is calculated by:
-    /// ```
+    /// ```ignore
     /// let supply_from = mint_from.supply - vault_from_ata.amount
     /// ```
     #[inline(always)]

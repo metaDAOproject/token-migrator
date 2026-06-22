@@ -15,8 +15,8 @@ This Anchor program enables users to migrate their tokens from an old token mint
 
 - Node.js and Yarn
 - Rust and Cargo
-- Solana CLI tools
-- Anchor CLI
+- Solana CLI (v2.3.0) tools
+- Anchor CLI (v0.31.1)
 
 ### Installation
 
