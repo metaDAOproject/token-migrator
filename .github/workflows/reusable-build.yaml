@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      SOLANA_VERIFY_VERSION: "0.4.1"
+      SOLANA_VERIFY_VERSION: "0.5.0"
     outputs:
       buffer: ${{ steps.program-buffer.outputs.buffer }}
       idl_buffer: ${{ steps.idl-buffer.outputs.buffer }}
