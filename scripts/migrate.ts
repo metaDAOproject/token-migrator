@@ -9,7 +9,6 @@ import {
   getAccount
 } from "@solana/spl-token";
 import BN from "bn.js";
-import { ADMIN_PUBLIC_KEY } from "./consts";
 
 const PROGRAM_ID = new PublicKey("gr8tqq2ripsM6N46gLWpSDXtdrH6J9jaXoyya1ELC9t");
 const MINT_FROM  = new PublicKey("METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr"); // This is inbound from the user
@@ -19,13 +18,18 @@ const AMOUNT     = new BN(10_000_000); // raw amount
 const provider = anchor.AnchorProvider.env();
 const payer    = provider.wallet["payer"];
 
+// Admin/creator of the vault to migrate into. Defaults to your own wallet so it
+// matches `initialize.ts` (which records the running wallet as the vault admin).
+// Set this to another creator's pubkey to migrate into a vault they created.
+const VAULT_ADMIN = payer.publicKey;
+
 async function main() {
   const program = anchor.workspace.TokenMigrator as Program<TokenMigrator>;
 
   const [vault] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("vault"),
-      ADMIN_PUBLIC_KEY.toBuffer(),
+      VAULT_ADMIN.toBuffer(),
       MINT_FROM.toBuffer(),
       MINT_TO.toBuffer()
     ],
