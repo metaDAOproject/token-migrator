@@ -124,8 +124,12 @@ export class TokenMigratorClient {
    * transaction and pays its rent; the separate `payer` only funds the
    * pre-instruction ATAs.
    *
-   * NOTE: `initialize` also requires `vaultToAta` to be funded (amount > 0)
-   * before it succeeds — fund it separately after the ATAs are created.
+   * NOTE: `initialize` requires `vaultToAta` to already hold a balance (the
+   * program enforces `amount > 0`); the idempotent ATA pre-instructions here do
+   * NOT fund it. Make sure it is funded before the `initialize` step runs —
+   * either in a prior transaction (the idempotent creates then no-op), or by
+   * appending a mint/transfer into `vaultToAta` to this builder's
+   * `.preInstructions()`, which all execute before `initialize`.
    *
    * @param mintFrom - Source mint
    * @param mintTo - Destination mint
