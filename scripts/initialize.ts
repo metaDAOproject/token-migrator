@@ -18,7 +18,8 @@ async function main() {
   
   const program = anchor.workspace.TokenMigrator as Program<TokenMigrator>;
   
-  // Derive vault PDA
+  // Derive vault PDA. The running wallet (`payer`) becomes the vault admin —
+  // initialization is permissionless, so no special admin key is required.
   const [vaultPda] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("vault"),

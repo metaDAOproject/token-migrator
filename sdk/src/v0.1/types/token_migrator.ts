@@ -550,6 +550,13 @@ export type TokenMigrator = {
       discriminator: [0];
     },
   ];
+  errors: [
+    {
+      code: 6000;
+      name: "exponentOutOfRange";
+      msg: "Fixed strategy exponent out of range (|e| must be <= 19)";
+    },
+  ];
   types: [
     {
       name: "migrateEvent";

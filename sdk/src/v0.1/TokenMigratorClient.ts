@@ -12,7 +12,6 @@ import {
 } from "@solana/web3.js";
 import type { TokenMigrator } from "./types/token_migrator.js";
 import TokenMigratorIDL from "./idl/token_migrator.json" with { type: "json" };
-import { TOKEN_MIGRATOR_ADMIN } from "./constants.js";
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
@@ -117,21 +116,37 @@ export class TokenMigratorClient {
   }
 
   /**
-   * Initialize a new token migration vault (admin only)
+   * Initialize a new token migration vault. Permissionless: anyone can create a
+   * vault and becomes its `admin`. The vault PDA is seeded by `admin`, so the
+   * same `(mintFrom, mintTo)` pair can have one vault per admin.
+   *
+   * The program sets `payer = admin` for the vault account, so `admin` signs the
+   * transaction and pays its rent; the separate `payer` only funds the
+   * pre-instruction ATAs.
+   *
+   * NOTE: `initialize` requires `vaultToAta` to already hold a balance (the
+   * program enforces `amount > 0`); the idempotent ATA pre-instructions here do
+   * NOT fund it. Make sure it is funded before the `initialize` step runs —
+   * either in a prior transaction (the idempotent creates then no-op), or by
+   * appending a mint/transfer into `vaultToAta` to this builder's
+   * `.preInstructions()`, which all execute before `initialize`.
+   *
    * @param mintFrom - Source mint
    * @param mintTo - Destination mint
    * @param strategy - { proRata: {} } or { fixed: { e } }
-   * @param payer - Defaults to this.wallet.publicKey
+   * @param admin - Vault admin/signer; defaults to this.wallet.publicKey
+   * @param payer - Funds the vault ATA accounts creation; defaults to `admin`
    */
   initializeIx(
     mintFrom: PublicKey,
     mintTo: PublicKey,
     strategy: Strategy,
-    payer: PublicKey = this.wallet.publicKey,
+    admin: PublicKey = this.wallet.publicKey,
+    payer: PublicKey = admin,
   ) {
     const [vault] = getVaultAddr(
       this.tokenMigrator.programId,
-      TOKEN_MIGRATOR_ADMIN,
+      admin,
       mintFrom,
       mintTo,
     );
@@ -146,7 +161,7 @@ export class TokenMigratorClient {
     return this.tokenMigrator.methods
       .initialize(mintFrom, mintTo, strategy)
       .accounts({
-        admin: TOKEN_MIGRATOR_ADMIN,
+        admin,
       })
       .preInstructions([
         createAssociatedTokenAccountIdempotentInstruction(
@@ -165,41 +180,65 @@ export class TokenMigratorClient {
   }
 
   /**
-   * Build migrate instruction(s)
+   * Build migrate instruction(s).
+   *
+   * The vault must be passed explicitly: on-chain its PDA is seeded by its own
+   * stored `admin` (`vault.admin`), which Anchor cannot auto-resolve. A UI
+   * usually already has the vault (e.g. from `getAllVaults`); if you only have
+   * the admin, derive it first with
+   * `getVaultAddr(programId, admin, mintFrom, mintTo)`.
+   *
    * @param mintFrom - Source mint
    * @param mintTo - Destination mint
    * @param amount - Amount to migrate
+   * @param vault - The vault to migrate into
    * @param user - Defaults to this.wallet.publicKey
-   * @param payer - Defaults to this.wallet.publicKey
+   * @param payer - Funds the user's destination ATA account creation; defaults to `user`
    */
   migrateIx(
     mintFrom: PublicKey,
     mintTo: PublicKey,
     amount: BN,
+    vault: PublicKey,
     user: PublicKey = this.wallet.publicKey,
-    payer: PublicKey = this.wallet.publicKey,
+    payer: PublicKey = user,
   ) {
+    const [vaultFromAta] = getVaultFromAtaAddr(
+      vault,
+      mintFrom,
+      TOKEN_PROGRAM_ID,
+    );
+    const [vaultToAta] = getVaultToAtaAddr(vault, mintTo, TOKEN_PROGRAM_ID);
     const userFromTa = getAssociatedTokenAddressSync(mintFrom, user, true);
     const userToTa = getAssociatedTokenAddressSync(mintTo, user, true);
 
-    return this.tokenMigrator.methods
-      .migrate(amount)
-      .accounts({
-        user,
-        mintFrom,
-        mintTo,
-        userFromTa,
-        userToTa,
-        program: this.tokenMigrator.programId,
-      })
-      .preInstructions([
-        createAssociatedTokenAccountIdempotentInstruction(
-          payer,
-          userToTa,
+    return (
+      this.tokenMigrator.methods
+        .migrate(amount)
+        // accountsPartial (not accounts): we pass the PDA accounts explicitly
+        // because `vault`'s seeds reference its own `vault.admin`, which Anchor
+        // cannot auto-resolve. The remaining accounts (eventAuthority,
+        // tokenProgram) still resolve automatically.
+        .accountsPartial({
           user,
+          mintFrom,
           mintTo,
-        ),
-      ]);
+          userFromTa,
+          userToTa,
+          vault,
+          vaultFromAta,
+          vaultToAta,
+          program: this.tokenMigrator.programId,
+        })
+        .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            payer,
+            userToTa,
+            user,
+            mintTo,
+          ),
+        ])
+    );
   }
 
   /**
@@ -229,23 +268,29 @@ export class TokenMigratorClient {
     throw new Error("Unknown strategy type");
   }
 
-  async getAllVaults(): Promise<
-    Array<{ publicKey: PublicKey; account: Vault }>
-  > {
-    return await this.tokenMigrator.account.vault.all([
-      {
-        memcmp: {
-          offset: 8, // discriminator
-          bytes: TOKEN_MIGRATOR_ADMIN.toBase58(),
-        },
-      },
-    ]);
+  /**
+   * Fetch all vaults. Pass `admin` to return only that admin's vaults; omit it
+   * to enumerate every vault (the program is permissionless, so vaults exist
+   * across many admins).
+   */
+  async getAllVaults(
+    admin?: PublicKey,
+  ): Promise<Array<{ publicKey: PublicKey; account: Vault }>> {
+    // `admin` is the first field after the 1-byte account discriminator
+    // (`#[account(discriminator = [1])]`), so it lives at offset 1.
+    return await this.tokenMigrator.account.vault.all(
+      admin ? [{ memcmp: { offset: 1, bytes: admin.toBase58() } }] : [],
+    );
   }
 
-  async vaultExists(mintFrom: PublicKey, mintTo: PublicKey): Promise<boolean> {
+  async vaultExists(
+    mintFrom: PublicKey,
+    mintTo: PublicKey,
+    admin: PublicKey = this.wallet.publicKey,
+  ): Promise<boolean> {
     const [vault] = getVaultAddr(
       this.tokenMigrator.programId,
-      TOKEN_MIGRATOR_ADMIN,
+      admin,
       mintFrom,
       mintTo,
     );

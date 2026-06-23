@@ -564,6 +564,13 @@
       ]
     }
   ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ExponentOutOfRange",
+      "msg": "Fixed strategy exponent out of range (|e| must be <= 19)"
+    }
+  ],
   "types": [
     {
       "name": "MigrateEvent",
