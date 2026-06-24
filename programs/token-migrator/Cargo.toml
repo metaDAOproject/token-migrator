@@ -22,3 +22,9 @@ anchor-lang = { version = "0.31.1", features = ["event-cpi"] }
 anchor-spl = "0.31.1"
 solana-security-txt = "1.1.1"
 
+[lints.rust]
+# Allow unexpected cfg flags in the codebase (silence rust-analyzer warning noise)
+unexpected_cfgs = { level = "allow", check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("custom-heap", "custom-panic", "anchor-debug"))',
+] }

@@ -4,10 +4,11 @@ A Solana program for migrating tokens from one mint to another using configurabl
 
 ## Overview
 
-This Anchor program enables users to migrate their tokens from an old token mint to a new token mint based on predefined migration strategies. The program supports two migration strategies:
+This Anchor program enables users to migrate their tokens from an old token mint to a new token mint based on predefined migration strategies. The program supports three migration strategies:
 
 - **ProRata**: Calculates withdrawal amounts based on proportional supply of both tokens
 - **Fixed**: Scales the deposited amount up or down by 10^e for decimal redenomination
+- **Ratio**: Applies a fixed rational rate `numerator / denominator` to the deposited amount
 
 ## Quick Start
 
@@ -82,6 +83,17 @@ Scales amounts by powers of 10:
 - `Fixed(1)`: Multiply by 10 (e.g., 100 → 1000)
 - `Fixed(-1)`: Divide by 10 (e.g., 100 → 10)
 - `Fixed(0)`: 1:1 ratio (e.g., 100 → 100)
+
+### Ratio Strategy
+Applies a fixed rational conversion rate, ignoring token supply:
+```
+withdraw_amount = floor(deposit_amount * numerator / denominator)
+```
+- `Ratio { numerator: 3, denominator: 2 }`: 3 out per 2 in (e.g., 100 → 150)
+- `Ratio { numerator: 1, denominator: 2 }`: 1 out per 2 in (e.g., 100 → 50)
+- `Ratio { numerator: 1, denominator: 1 }`: 1:1 ratio (e.g., 100 → 100)
+
+Both `numerator` and `denominator` must be non-zero. Like `Fixed`, this operates on **raw base units** and is not decimal-aware: if the mints have different decimals, fold the `10^(decimals_to - decimals_from)` factor into the ratio (see the worked example in `RATIO_STRATEGY.md`). Division floors; the residue stays in the vault.
 
 ## Security
 

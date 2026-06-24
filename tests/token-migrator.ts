@@ -199,4 +199,146 @@ describe("token-migrator", () => {
         .then(log);
     });
   });
+
+  describe("Ratio Strategy", async () => {
+    // Fresh mints => a distinct vault PDA, reusing the same admin/user.
+    const ratioMintFromKeypair = Keypair.generate();
+    const ratioMintToKeypair = Keypair.generate();
+    const ratioMintFrom = ratioMintFromKeypair.publicKey;
+    const ratioMintTo = ratioMintToKeypair.publicKey;
+
+    const ratioVault = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("vault"),
+        admin.toBuffer(),
+        ratioMintFrom.toBuffer(),
+        ratioMintTo.toBuffer(),
+      ],
+      program.programId,
+    )[0];
+
+    const [rUserFromTa, rUserToTa, rVaultFromAta, rVaultToAta] = [
+      getAssociatedTokenAddressSync(ratioMintFrom, user, false),
+      getAssociatedTokenAddressSync(ratioMintTo, user, false),
+      getAssociatedTokenAddressSync(ratioMintFrom, ratioVault, true),
+      getAssociatedTokenAddressSync(ratioMintTo, ratioVault, true),
+    ];
+
+    const ratioAccounts = {
+      admin,
+      mintFrom: ratioMintFrom,
+      mintTo: ratioMintTo,
+      user,
+      userFromTa: rUserFromTa,
+      userToTa: rUserToTa,
+      vault: ratioVault,
+      vaultFromAta: rVaultFromAta,
+      vaultToAta: rVaultToAta,
+      tokenProgram,
+      systemProgram,
+      eventAuthority,
+      program: program.programId,
+    };
+
+    const DEPOSIT = new BN(100_000_000);
+    const NUMERATOR = new BN(3);
+    const DENOMINATOR = new BN(2);
+    // floor(100_000_000 * 3 / 2) = 150_000_000
+    const EXPECTED_OUT = DEPOSIT.mul(NUMERATOR).div(DENOMINATOR);
+
+    it("Sets up fresh mints and funds the ratio user's `from` ATA.", async () => {
+      const lamports = await getMinimumBalanceForRentExemptMint(connection);
+      const tx = new Transaction();
+      tx.instructions = [
+        ...[ratioMintFrom, ratioMintTo].flatMap((mint) => [
+          SystemProgram.createAccount({
+            fromPubkey: provider.publicKey,
+            newAccountPubkey: mint,
+            lamports,
+            space: MINT_SIZE,
+            programId: tokenProgram,
+          }),
+          createInitializeMint2Instruction(mint, 6, provider.publicKey!, null),
+        ]),
+        createAssociatedTokenAccountIdempotentInstruction(
+          provider.publicKey,
+          rUserFromTa,
+          user,
+          ratioMintFrom,
+        ),
+        createMintToInstruction(
+          ratioMintFrom,
+          rUserFromTa,
+          provider.publicKey!,
+          1e9,
+        ),
+      ];
+
+      await provider
+        .sendAndConfirm(tx, [ratioMintFromKeypair, ratioMintToKeypair])
+        .then(log);
+    });
+
+    it("Initializes a Ratio { 3, 2 } vault and funds `vaultToAta`.", async () => {
+      await program.methods
+        .initialize(ratioMintFrom, ratioMintTo, {
+          ratio: { numerator: NUMERATOR, denominator: DENOMINATOR },
+        })
+        .accountsStrict({
+          ...ratioAccounts,
+        })
+        .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            admin,
+            rVaultFromAta,
+            ratioVault,
+            ratioMintFrom,
+          ),
+          createAssociatedTokenAccountIdempotentInstruction(
+            admin,
+            rVaultToAta,
+            ratioVault,
+            ratioMintTo,
+          ),
+          // Fund the `to` vault above EXPECTED_OUT (3:2 pays out more than it takes in).
+          createMintToInstruction(
+            ratioMintTo,
+            rVaultToAta,
+            provider.publicKey!,
+            1e9,
+          ),
+        ])
+        .signers([adminKeypair])
+        .rpc()
+        .then(confirm)
+        .then(log);
+    });
+
+    it("Migrates and receives floor(amount * 3 / 2) of `mintTo`.", async () => {
+      await program.methods
+        .migrate(DEPOSIT)
+        .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            user,
+            rUserToTa,
+            user,
+            ratioMintTo,
+          ),
+        ])
+        .accountsStrict({
+          ...ratioAccounts,
+        })
+        .signers([userKeypair])
+        .rpc()
+        .then(confirm)
+        .then(log);
+
+      const bal = await connection.getTokenAccountBalance(rUserToTa);
+      if (bal.value.amount !== EXPECTED_OUT.toString()) {
+        throw new Error(
+          `expected ${EXPECTED_OUT.toString()} got ${bal.value.amount}`,
+        );
+      }
+    });
+  });
 });
