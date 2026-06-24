@@ -62,7 +62,7 @@ impl Strategy {
                 .saturating_div(supply_from.into())
                 .try_into()
                 .map_err(|_| ProgramError::ArithmeticOverflow)?,
-            Strategy::Fixed { e} => {
+            Strategy::Fixed { e } => {
                 if e == 0 {
                     amount
                 } else if e < 0 {
