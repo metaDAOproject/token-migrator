@@ -556,6 +556,11 @@ export type TokenMigrator = {
       name: "exponentOutOfRange";
       msg: "Fixed strategy exponent out of range (|e| must be <= 19)";
     },
+    {
+      code: 6001;
+      name: "invalidRatio";
+      msg: "Ratio numerator and denominator must both be non-zero";
+    },
   ];
   types: [
     {
@@ -591,10 +596,11 @@ export type TokenMigrator = {
       docs: [
         "# Strategy",
         "",
-        "Defines the strategy by which we perform a migration. There are two cases:",
+        "Defines the strategy by which we perform a migration. There are three cases:",
         "",
         "`ProRata` - Calculates a `withdraw_amount` based upon pro-rated supply of both tokens.",
         "`Fixed(i8)` - Calculates `withdraw_amount` by scaling the `amount` deposited up or down by `10^e`. Useful for decimal redenomination.",
+        "`Ratio { numerator, denominator }` - Calculates `withdraw_amount = floor(amount * numerator / denominator)`, a fixed rational rate that ignores supply.",
       ];
       type: {
         kind: "enum";
@@ -608,6 +614,19 @@ export type TokenMigrator = {
               {
                 name: "e";
                 type: "i8";
+              },
+            ];
+          },
+          {
+            name: "ratio";
+            fields: [
+              {
+                name: "numerator";
+                type: "u64";
+              },
+              {
+                name: "denominator";
+                type: "u64";
               },
             ];
           },

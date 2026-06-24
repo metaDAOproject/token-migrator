@@ -16,7 +16,10 @@ export type MigrateEvent = IdlEvents<TokenMigratorProgram>["migrateEvent"];
 export type TokenMigrationEvents = MigrateEvent;
 
 // Strategy enum type
-export type Strategy = { proRata: {} } | { fixed: { e: number } };
+export type Strategy =
+  | { proRata: {} }
+  | { fixed: { e: number } }
+  | { ratio: { numerator: BN; denominator: BN } };
 
 import { IdlEvents } from "@coral-xyz/anchor";
 // Re-export PublicKey and BN for convenience

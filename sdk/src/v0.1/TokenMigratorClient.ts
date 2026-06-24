@@ -115,6 +115,10 @@ export class TokenMigratorClient {
     return { fixed: { e } };
   }
 
+  createRatioStrategy(numerator: BN, denominator: BN): Strategy {
+    return { ratio: { numerator, denominator } };
+  }
+
   /**
    * Initialize a new token migration vault. Permissionless: anyone can create a
    * vault and becomes its `admin`. The vault PDA is seeded by `admin`, so the
@@ -133,7 +137,7 @@ export class TokenMigratorClient {
    *
    * @param mintFrom - Source mint
    * @param mintTo - Destination mint
-   * @param strategy - { proRata: {} } or { fixed: { e } }
+   * @param strategy - { proRata: {} }, { fixed: { e } }, or { ratio: { numerator, denominator } }
    * @param admin - Vault admin/signer; defaults to this.wallet.publicKey
    * @param payer - Funds the vault ATA accounts creation; defaults to `admin`
    */
@@ -245,6 +249,7 @@ export class TokenMigratorClient {
    * Calculate expected output amount
    * - ProRata: out = amount * mintToSupply / mintFromSupply
    * - Fixed:   out = amount * 10^e  (or / 10^|e| if e < 0)
+   * - Ratio:   out = amount * numerator / denominator
    */
   calculateMigrationAmount(
     vault: Vault,
@@ -264,6 +269,11 @@ export class TokenMigratorClient {
       } else {
         return amount.div(new BN(10).pow(new BN(-e)));
       }
+    } else if ("ratio" in vault.strategy) {
+      const { numerator, denominator } = vault.strategy.ratio;
+      // BN.div truncates toward zero == floor for non-negative operands,
+      // matching the on-chain u128 muldiv floor.
+      return amount.mul(numerator).div(denominator);
     }
     throw new Error("Unknown strategy type");
   }

@@ -5,13 +5,15 @@ use crate::errors::MigratorError;
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 /// # Strategy
 ///
-/// Defines the strategy by which we perform a migration. There are two cases:
+/// Defines the strategy by which we perform a migration. There are three cases:
 ///
 /// `ProRata` - Calculates a `withdraw_amount` based upon pro-rated supply of both tokens.
 /// `Fixed(i8)` - Calculates `withdraw_amount` by scaling the `amount` deposited up or down by `10^e`. Useful for decimal redenomination.
+/// `Ratio { numerator, denominator }` - Calculates `withdraw_amount = floor(amount * numerator / denominator)`, a fixed rational rate that ignores supply.
 pub enum Strategy {
     ProRata,
     Fixed { e: i8 },
+    Ratio { numerator: u64, denominator: u64 },
 }
 
 /// Maximum magnitude of the `Fixed` exponent. `10^19` is the largest power of
@@ -25,14 +27,25 @@ impl Strategy {
     /// Ensures the strategy parameters are within safe bounds before the vault
     /// is persisted. For `Fixed`, the exponent magnitude must be
     /// `<= MAX_FIXED_EXPONENT` so the `10u64.pow(|e|)` scaling in
-    /// `withdraw_amount` cannot overflow. `ProRata` carries no parameters and is
-    /// always valid.
+    /// `withdraw_amount` cannot overflow. For `Ratio`, both `numerator` and
+    /// `denominator` must be non-zero: a zero denominator would divide by zero,
+    /// and a zero numerator would make every migration round to zero output.
+    /// `ProRata` carries no parameters and is always valid.
     pub fn validate(&self) -> Result<()> {
         if let Strategy::Fixed { e } = self {
             require!(
                 e.unsigned_abs() <= MAX_FIXED_EXPONENT,
                 MigratorError::ExponentOutOfRange
             );
+        }
+
+        if let Strategy::Ratio {
+            numerator,
+            denominator,
+        } = self
+        {
+            require!(*denominator > 0, MigratorError::InvalidRatio);
+            require!(*numerator > 0, MigratorError::InvalidRatio);
         }
 
         Ok(())
@@ -49,7 +62,7 @@ impl Strategy {
                 .saturating_div(supply_from.into())
                 .try_into()
                 .map_err(|_| ProgramError::ArithmeticOverflow)?,
-            Strategy::Fixed { e} => {
+            Strategy::Fixed { e } => {
                 if e == 0 {
                     amount
                 } else if e < 0 {
@@ -64,6 +77,16 @@ impl Strategy {
                         .ok_or(ProgramError::ArithmeticOverflow)?
                 }
             }
+            Strategy::Ratio {
+                numerator,
+                denominator,
+            } => u128::from(amount)
+                .checked_mul(u128::from(numerator))
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                .checked_div(u128::from(denominator))
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                .try_into()
+                .map_err(|_| ProgramError::ArithmeticOverflow)?,
         };
 
         // Ensure withdraw amount is not zero
@@ -138,5 +161,114 @@ mod tests {
         assert!(Strategy::Fixed { e: -20 }.validate().is_err());
         assert!(Strategy::Fixed { e: i8::MAX }.validate().is_err());
         assert!(Strategy::Fixed { e: i8::MIN }.validate().is_err());
+    }
+
+    #[test]
+    fn test_ratio_identity() {
+        let strategy = Strategy::Ratio {
+            numerator: 1,
+            denominator: 1,
+        };
+        assert_eq!(strategy.withdraw_amount(10, 0, 0).unwrap(), 10);
+    }
+
+    #[test]
+    fn test_ratio_up() {
+        let strategy = Strategy::Ratio {
+            numerator: 3,
+            denominator: 2,
+        };
+        assert_eq!(strategy.withdraw_amount(100, 0, 0).unwrap(), 150);
+    }
+
+    #[test]
+    fn test_ratio_down() {
+        let strategy = Strategy::Ratio {
+            numerator: 1,
+            denominator: 2,
+        };
+        assert_eq!(strategy.withdraw_amount(100, 0, 0).unwrap(), 50);
+    }
+
+    #[test]
+    fn test_ratio_floor() {
+        // 100 * 1 / 3 = 33.33 -> 33 (floor)
+        let strategy = Strategy::Ratio {
+            numerator: 1,
+            denominator: 3,
+        };
+        assert_eq!(strategy.withdraw_amount(100, 0, 0).unwrap(), 33);
+    }
+
+    #[test]
+    fn test_ratio_zero_output_err() {
+        // 100 * 1 / 1000 = 0 -> rejected by the zero-output guard
+        let strategy = Strategy::Ratio {
+            numerator: 1,
+            denominator: 1000,
+        };
+        assert!(strategy.withdraw_amount(100, 0, 0).is_err());
+    }
+
+    #[test]
+    fn test_ratio_large_no_u128_overflow() {
+        // u64::MAX * u64::MAX fits in u128; / u64::MAX == u64::MAX. Must not panic.
+        let strategy = Strategy::Ratio {
+            numerator: u64::MAX,
+            denominator: u64::MAX,
+        };
+        assert_eq!(strategy.withdraw_amount(u64::MAX, 0, 0).unwrap(), u64::MAX);
+    }
+
+    #[test]
+    fn test_ratio_result_exceeds_u64_err() {
+        // 2 * u64::MAX / 1 overflows u64 on the final try_into -> Err
+        let strategy = Strategy::Ratio {
+            numerator: u64::MAX,
+            denominator: 1,
+        };
+        assert!(strategy.withdraw_amount(2, 0, 0).is_err());
+    }
+
+    #[test]
+    fn test_validate_ratio_ok() {
+        assert!(Strategy::Ratio {
+            numerator: 1,
+            denominator: 1
+        }
+        .validate()
+        .is_ok());
+        assert!(Strategy::Ratio {
+            numerator: 3,
+            denominator: 2
+        }
+        .validate()
+        .is_ok());
+        assert!(Strategy::Ratio {
+            numerator: u64::MAX,
+            denominator: u64::MAX
+        }
+        .validate()
+        .is_ok());
+    }
+
+    #[test]
+    fn test_validate_ratio_zero_denominator_err() {
+        assert!(Strategy::Ratio {
+            numerator: 1,
+            denominator: 0
+        }
+        .validate()
+        .is_err());
+    }
+
+    #[test]
+    fn test_validate_ratio_zero_numerator_err() {
+        assert!(Strategy::Ratio {
+            numerator: 0,
+            denominator: 1
+        }
+        .validate()
+        .is_err());
     }
 }
