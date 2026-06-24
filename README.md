@@ -93,7 +93,7 @@ withdraw_amount = floor(deposit_amount * numerator / denominator)
 - `Ratio { numerator: 1, denominator: 2 }`: 1 out per 2 in (e.g., 100 → 50)
 - `Ratio { numerator: 1, denominator: 1 }`: 1:1 ratio (e.g., 100 → 100)
 
-Both `numerator` and `denominator` must be non-zero. Like `Fixed`, this operates on **raw base units** and is not decimal-aware: if the mints have different decimals, fold the `10^(decimals_to - decimals_from)` factor into the ratio (see the worked example in `RATIO_STRATEGY.md`). Division floors; the residue stays in the vault.
+Both `numerator` and `denominator` must be non-zero. Like `Fixed`, this operates on **raw base units** and is not decimal-aware: if the mints have different decimals, fold the `10^(decimals_to - decimals_from)` factor into the ratio. Division floors; the residue stays in the vault.
 
 ## Security
 
